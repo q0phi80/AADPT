@@ -1,0 +1,3 @@
+Step1: sudo passwd
+Step2: sudo apt install kali-root-login -y
+Step3: reboot

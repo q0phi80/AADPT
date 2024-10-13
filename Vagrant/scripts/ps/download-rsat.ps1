@@ -1,0 +1,2 @@
+Invoke-WebRequest -Uri  https://github.com/n0ts0cial/dll/raw/main/Microsoft.ActiveDirectory.Management.dll -OutFile Microsoft.ActiveDirectory.Management.dll
+Import-Module .\Microsoft.ActiveDirectory.Management.dll

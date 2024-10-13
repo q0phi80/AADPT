@@ -1,0 +1,12 @@
+# Root Domain Hosts
+192.168.56.10   client.ad rt-dc.client.ad rt-dc
+192.168.56.30   rt-wkstn.client.ad rt-wkstn
+
+# Chld Domain Hosts
+192.168.56.11   child.client.ad cd-dc.child.client.ad cd-dc
+192.168.56.22   cd-srv.child.client.ad cd-srv
+192.168.56.31   cd-wkstn.child.client.ad cd-wkstn
+
+# Foreign Domain Hosts
+192.168.56.12   foreign.ad fn-dc.foreign.ad fn-dc 
+192.168.56.23   fn-srv.foreign.ad fn-srv

@@ -1,0 +1,1 @@
+Get-ADUser -Identity "king.moshoeshoe" | Set-ADUser -Description "Pass: Basotho19"

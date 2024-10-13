@@ -1,0 +1,1 @@
+Get-AppxPackage -Name * | Remove-AppxPackage -ErrorAction SilentlyContinue | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue

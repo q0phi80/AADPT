@@ -1,0 +1,15 @@
+sudo apt install mitm6 crackmapexec bloodhound.py pipx -y
+Responder:
+- git clone https://github.com/lgandx/Responder.git
+Impacket:
+- git clone https://github.com/fortra/impacket.git
+- cd impacket
+- python3 -m pipx install .
+smbclient-ng:
+- python3 -m pip install smbclientng
+kerbrute:
+- pipx install kerbrute
+- wget https://github.com/ropnop/kerbrute/releases/download/v1.0.3/kerbrute_linux_amd64
+-- chmod +x kerbrute_linux_amd64
+AD-Miner:
+- pipx install 'git+https://github.com/Mazars-Tech/AD_Miner.git'

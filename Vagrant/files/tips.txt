@@ -1,0 +1,25 @@
+Windows Task Scheduler
+Get-ScheduledTask | where state -eq 'Running'
+
+Troubleshooting AD connection from Domain-Joined boxes
+Test connection to Domain 
+- Test-NetConnection client.ad 
+Test for DNS firewall blockage
+- Test-NetConnection 192.168.56.10 -Port 53
+
+Troubleshooting DNS
+Run on DC
+1. Stop the DNS Service
+-- Stop-Service DNS
+2. Start the DNS Service
+-- Start-Service DNS
+3. Restart the DNS Service
+-- Restart-Service DNS
+
+Linux clear kerberos ticket
+unset KRB5CCNAME
+
+List Network Interfaces on Windows
+- netsh interface show interface
+Display network route
+- route print

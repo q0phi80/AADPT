@@ -1,0 +1,390 @@
+# Reference: https://github.com/Orange-Cyberdefense/GOAD/tree/main/ad/GOAD
+
+# PLUGINS to install
+# - reload: vagrant plugin install vagrant-reload
+# - vagrant plugin install vagrant-vbguest
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'yaml'
+
+VAGRANTFILE_API_VERSION = "2"
+
+# Define images to be used
+$windows_2022 = "q0phi80/windows_2022_custom"
+$kali_linux = "q0phi80/kali"
+$windows_10 = "q0phi80/Windows10Pro"
+#$kali_linux = "kalilinux/rolling"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  # ==============================================
+  # CLIENT.AD
+  # ==============================================
+
+  ## FOREST DOMAIN CONTROLLER
+	######################################
+	config.vm.synced_folder '.', '/vagrant', disabled: true
+	  config.vm.define "RT-DC" do |rdc|
+    rdc.vm.box = $windows_2022
+    if Vagrant.has_plugin?("vagrant-vbguest") then
+          config.vbguest.auto_update = false
+    end
+    rdc.vm.box_check_update = false
+    rdc.vm.hostname = "RT-DC"
+    # Use the plaintext WinRM transport and force it to use basic authentication.
+    # NB this is needed because the default negotiate transport stops working after the DC is installed.
+    # see https://groups.google.com/forum/#!topic/vagrant-up/sZantuCM0q4
+    rdc.winrm.transport = :plaintext
+    rdc.winrm.basic_auth_only = true
+    rdc.vm.communicator = "winrm"
+    rdc.winrm.timeout =   3000
+    rdc.winrm.retry_limit = 30
+    rdc.winrm.retry_delay = 10
+    rdc.vm.boot_timeout = 3000
+    rdc.vm.graceful_halt_timeout = 600
+    rdc.vm.network "private_network", ip: "192.168.56.10"
+    
+  # Upload files | COMMENT OUT THIS SECTION BEFORE RUNNING POST-DEPLOYMENT SCRIPTS
+    rdc.vm.provision "file", source: "./files/users-root.csv", destination: "C:/users-root.csv"
+    rdc.vm.provision "file", source: "./files/message.txt", destination: "C:/youreyezonly.txt"
+    rdc.vm.provision "file", source: "./scripts/ps/ps-remote-rt-dc.ps1", destination: "C:/psr.ps1"
+    
+    rdc.vm.provision "file", source: "./files/hosts-win", destination: "C:/Windows/System32/Drivers/etc/hosts"
+    rdc.vm.provision "file", source: "./files/ESC1.json", destination: "C:/ESC1.json"
+    rdc.vm.provision "file", source: "./files/ESC2.json", destination: "C:/ESC2.json"
+    rdc.vm.provision "file", source: "./files/ESC3-1.json", destination: "C:/ESC3-1.json"
+    rdc.vm.provision "file", source: "./files/ESC3-2.json", destination: "C:/ESC3-2.json"
+    rdc.vm.provision "file", source: "./files/ESC4.json", destination: "C:/ESC4.json"
+ 
+  # Provisioning scripts | COMMENT OUT THIS SECTION BEFORE RUNNING POST-DEPLOYMENT SCRIPTS
+    
+    rdc.vm.provision "shell", path: "scripts/ps/provision-all.ps1", privileged: true
+    rdc.vm.provision "shell", inline: "netsh int ip set address 'Ethernet 2' address=192.168.56.10 mask=255.255.255.0 gateway=192.168.56.1"
+    rdc.vm.provision "shell", path: "scripts/ps/create-ad-root.ps1", privileged: true, args: "-ip 192.168.56.10 -domain client.ad -netbios CLIENT", reboot: true
+    rdc.vm.provision "shell", path: "scripts/ps/create-adgroups-root.ps1", privileged: true
+    rdc.vm.provision "shell", path: "scripts/ps/create-ad-users-root.ps1", privileged: true
+    rdc.vm.provision "shell", path: "scripts/ps/create-acls-root.ps1", privileged: true    
+    rdc.vm.provision "shell", path: "scripts/ps/install-adcs-root.ps1", privileged: true, reboot: true
+    rdc.vm.provision "shell", path: "scripts/ps/adcs-cert-templates-rt.ps1", privileged: true
+    
+    # POST-DEPLOYMENT SCRIPTS  | UNCOMMENT THIS SECTION AND RUN THE SCRIPT(S) AFTER ALL DCs AND OTHER VMs DEPLOYED AND THE NAT INTERFACE CONNECTED
+    # rdc.vm.provision "shell", path: "scripts/ps/provision-rt-dc.ps1", privileged: true
+    # rdc.vm.provision "shell", path: "scripts/ps/ps-session-schedule.ps1", privileged: true
+      
+    # VBoxMange Customization
+    rdc.vm.provider "virtualbox" do |v, override|
+      v.gui = false
+      #v.linked_clone = true
+      v.name = "RT-DC"
+	    v.memory = 2048
+      v.cpus = 2
+      v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+    end
+end 
+
+## FOREST WORKSTATION 1
+	######################################
+	config.vm.synced_folder '.', '/vagrant', disabled: true
+	  config.vm.define "RT-WKSTN" do |rwk|
+    rwk.vm.box = $windows_10
+    rwk.vm.box_check_update = false
+    rwk.vm.hostname = "RT-WKSTN"
+    # Use the plaintext WinRM transport and force it to use basic authentication.
+    # NB this is needed because the default negotiate transport stops working after the domain controller is installed.
+    # see https://groups.google.com/forum/#!topic/vagrant-up/sZantuCM0q4
+    rwk.winrm.transport = :plaintext
+    rwk.winrm.basic_auth_only = true
+    rwk.vm.communicator = "winrm"
+    # rwk.winrm.username = "vagrant"
+    # rwk.winrm.password = "vagrant"
+    rwk.winrm.timeout =   3000
+    rwk.winrm.retry_limit = 30
+    rwk.winrm.retry_delay = 10
+    rwk.vm.boot_timeout = 3000
+    rwk.vm.graceful_halt_timeout = 600
+    rwk.vm.network "private_network", ip: "192.168.56.30"
+
+  # Upload files
+    rwk.vm.provision "file", source: "./files/hosts-win", destination: "C:/Windows/System32/Drivers/etc/hosts"
+
+  # Provisioning scripts
+    rwk.vm.provision "shell", path: "scripts/ps/provision-all.ps1", privileged: true
+    rwk.vm.provision "shell", inline: "netsh int ip set address 'Ethernet 2' address=192.168.56.30 mask=255.255.255.0 gateway=192.168.56.1"
+    rwk.vm.provision "shell", path: "scripts/ps/join-ad-root.ps1", privileged: true, reboot: true
+    rwk.vm.provision "shell", path: "scripts/ps/enable-rdp.ps1", privileged: true, reboot: true
+    rwk.vm.provision "shell", path: "scripts/ps/provision-rt-wkstn.ps1", privileged: true, reboot: true
+  
+    # VBoxMange Customization
+    rwk.vm.provider "virtualbox" do |v, override|
+      v.gui = false
+      #v.linked_clone = true
+      v.name = "RT-WKSTN"
+	    v.memory = 2048
+      v.cpus = 2
+      v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+    end
+end 
+
+  # ==============================================
+  # CHILD.CLIENT.AD
+  # ==============================================
+
+  ## CHILD DOMAIN CONTROLLER
+	######################################
+	config.vm.synced_folder '.', '/vagrant', disabled: true
+	  config.vm.define "CD-DC" do |cdc|
+    cdc.vm.box = $windows_2022
+    cdc.vm.box_check_update = false
+    cdc.vm.hostname = "CD-DC"
+    # Use the plaintext WinRM transport and force it to use basic authentication.
+    # NB this is needed because the default negotiate transport stops working after the domain controller is installed.
+    # see https://groups.google.com/forum/#!topic/vagrant-up/sZantuCM0q4
+    cdc.winrm.transport = :plaintext
+    cdc.winrm.basic_auth_only = true
+    cdc.vm.communicator = "winrm"
+    cdc.winrm.timeout =   3000
+    cdc.winrm.retry_limit = 30
+    cdc.winrm.retry_delay = 10
+    cdc.vm.boot_timeout = 3000
+    cdc.vm.graceful_halt_timeout = 600
+    cdc.vm.network "private_network", ip: "192.168.56.11"
+
+  # Upload files
+    cdc.vm.provision "file", source: "./files/hosts-win", destination: "C:/Windows/System32/Drivers/etc/hosts"
+    cdc.vm.provision "file", source: "./files/users-child.csv", destination: "C:/users-child.csv"  
+
+  # Provisioning scripts
+    cdc.vm.provision "shell", path: "scripts/ps/provision-all.ps1", privileged: true
+    cdc.vm.provision "shell", inline: "netsh int ip set address 'Ethernet 2' address=192.168.56.11 mask=255.255.255.0 gateway=192.168.56.1"
+    cdc.vm.provision "shell", path: "scripts/ps/create-dc.ps1", privileged: true, reboot: true
+    cdc.vm.provision "shell", path: "scripts/ps/create-ad-child.ps1", privileged: true, reboot: true
+    cdc.vm.provision "shell", path: "scripts/ps/create-child-parent-trust.ps1", privileged: true, reboot: true
+    cdc.vm.provision "shell", path: "scripts/ps/create-adgroups-child.ps1", privileged: true
+    cdc.vm.provision "shell", path: "scripts/ps/create-ad-users-child.ps1", privileged: true
+
+  # POST-DEPLOYMENT SCRIPTS - UNCOMMENT AND RUN THESE SCRIPTS AFTER CD-SRV AND CD-WKSTN HAVE BEEN FULLY DEPLOYED
+    # cdc.vm.provision "shell", path: "scripts/ps/provision-cd-dc.ps1", privileged: true
+    # cdc.vm.provision "shell", path: "scripts/ps/create-acls-child.ps1", privileged: true
+    # cdc.vm.provision "shell", path: "scripts/ps/session-scheduler-cd.ps1", privileged: true
+      
+    # VBoxMange Customization
+    cdc.vm.provider "virtualbox" do |v, override|
+      v.gui = false
+      #v.linked_clone = true
+      v.name = "CD-DC"
+	    v.memory = 2048
+      v.cpus = 2
+      v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+    end
+end 
+
+## CHILD WORKSTATION 1
+	######################################
+	config.vm.synced_folder '.', '/vagrant', disabled: true
+	  config.vm.define "CD-WKSTN" do |cwk|
+    cwk.vm.box = $windows_10
+    cwk.vm.box_check_update = false
+    cwk.vm.hostname = "CD-WKSTN"
+    # Use the plaintext WinRM transport and force it to use basic authentication.
+    # NB this is needed because the default negotiate transport stops working after the domain controller is installed.
+    # see https://groups.google.com/forum/#!topic/vagrant-up/sZantuCM0q4
+    cwk.winrm.transport = :plaintext
+    cwk.winrm.basic_auth_only = true
+    cwk.vm.communicator = "winrm"
+    cwk.winrm.timeout =   3000
+    cwk.winrm.retry_limit = 30
+    cwk.winrm.retry_delay = 10
+    cwk.vm.boot_timeout = 3000
+    cwk.vm.graceful_halt_timeout = 600
+    cwk.vm.network "private_network", ip: "192.168.56.31"
+
+  # Upload files
+    cwk.vm.provision "file", source: "./files/hosts-win", destination: "C:/Windows/System32/Drivers/etc/hosts"
+
+  # Provisioning scripts
+    cwk.vm.provision "shell", path: "scripts/ps/provision-all.ps1", privileged: true
+    cwk.vm.provision "shell", inline: "netsh int ip set address 'Ethernet 2' address=192.168.56.31 mask=255.255.255.0 gateway=192.168.56.1"
+    cwk.vm.provision "shell", path: "scripts/ps/join-ad-child.ps1", privileged: true, reboot: true
+    cwk.vm.provision "shell", path: "scripts/ps/provision-cd-wkstn.ps1", privileged: true
+ 
+    # VBoxMange Customization
+    cwk.vm.provider "virtualbox" do |v, override|
+      v.gui = false
+      #v.linked_clone = true
+      v.name = "CD-WKSTN"
+	    v.memory = 4096
+      v.cpus = 2
+      v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+    end
+end
+
+ ## CHILD SERVER 01
+	######################################
+	config.vm.synced_folder '.', '/vagrant', disabled: true
+	  config.vm.define "CD-SRV" do |csrv|
+    csrv.vm.box = $windows_2022
+    csrv.vm.box_check_update = false
+    csrv.vm.hostname = "CD-SRV"
+    # Use the plaintext WinRM transport and force it to use basic authentication.
+    # NB this is needed because the default negotiate transport stops working after the domain controller is installed.
+    # see https://groups.google.com/forum/#!topic/vagrant-up/sZantuCM0q4
+    csrv.winrm.transport = :plaintext
+    csrv.winrm.basic_auth_only = true
+    csrv.vm.communicator = "winrm"
+    csrv.winrm.timeout =   3000
+    csrv.winrm.retry_limit = 30
+    csrv.winrm.retry_delay = 10
+    csrv.vm.boot_timeout = 3000
+    csrv.vm.graceful_halt_timeout = 600
+    csrv.vm.network "private_network", ip: "192.168.56.22"
+
+  # Upload files
+    csrv.vm.provision "file", source: "./files/hosts-win", destination: "C:/Windows/System32/Drivers/etc/hosts" 
+    csrv.vm.provision "file", source: "./files/sql_config.ini", destination: "C:/sql_config.ini" 
+    csrv.vm.provision "file", source: "./scripts/ps/ps-remote-cd-srv.ps1", destination: "C:/psr.ps1" 
+    
+  # # Provisioning scripts
+    csrv.vm.provision "shell", path: "scripts/ps/provision-all.ps1", privileged: true
+    csrv.vm.provision "shell", inline: "netsh int ip set address 'Ethernet 2' address=192.168.56.22 mask=255.255.255.0 gateway=192.168.56.1"
+    csrv.vm.provision "shell", path: "scripts/ps/install-ftp.ps1", privileged: true
+    csrv.vm.provision "shell", path: "scripts/ps/join-ad-child.ps1", privileged: true, reboot: true
+    csrv.vm.provision "shell", path: "scripts/ps/provision-cd-srv.ps1", privileged: true, reboot: true
+    csrv.vm.provision "shell", path: "scripts/ps/ps-session-schedule.ps1", privileged: true
+  
+    # VBoxMange Customization
+    csrv.vm.provider "virtualbox" do |v, override|
+      v.gui = false
+      #v.linked_clone = true
+      v.name = "CD-SRV"
+	    v.memory = 2048
+      v.cpus = 2
+      v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+    end
+end 
+
+# ==============================================
+  # FOREIGN.AD
+  # ==============================================
+
+  ## FOREIGN DOMAIN CONTROLLER
+	######################################
+	config.vm.synced_folder '.', '/vagrant', disabled: true
+	  config.vm.define "FN-DC" do |fdc|
+    fdc.vm.box = $windows_2022
+    fdc.vm.box_check_update = false
+    fdc.vm.hostname = "FN-DC"
+    # Use the plaintext WinRM transport and force it to use basic authentication.
+    # NB this is needed because the default negotiate transport stops working after the domain controller is installed.
+    # see https://groups.google.com/forum/#!topic/vagrant-up/sZantuCM0q4
+    fdc.winrm.transport = :plaintext
+    fdc.winrm.basic_auth_only = true
+    fdc.vm.communicator = "winrm"
+    fdc.winrm.timeout =   3000
+    fdc.winrm.retry_limit = 30
+    fdc.winrm.retry_delay = 10
+    fdc.vm.boot_timeout = 3000
+    fdc.vm.graceful_halt_timeout = 600
+    fdc.vm.network "private_network", ip: "192.168.56.12"
+
+  # Upload files
+    fdc.vm.provision "file", source: "./files/hosts-win", destination: "C:/Windows/System32/Drivers/etc/hosts"
+    fdc.vm.provision "file", source: "./files/users-foreign.csv", destination: "C:/users-foreign.csv"
+    fdc.vm.provision "file", source: "./files/Vuln-ESC1.json", destination: "C:/Windows/Temp/Vuln-ESC1.json"
+    fdc.vm.provision "file", source: "./files/Vuln-ESC2.json", destination: "C:/Windows/Temp/Vuln-ESC2.json"
+    fdc.vm.provision "file", source: "./files/Vuln-ESC3-1.json", destination: "C:/Windows/Temp/Vuln-ESC3-1.json"
+    fdc.vm.provision "file", source: "./files/Vuln-ESC3-2.json", destination: "C:/Windows/Temp/Vuln-ESC3-2.json"
+    fdc.vm.provision "file", source: "./files/Vuln-ESC4.json", destination: "C:/Windows/Temp/Vuln-ESC4.json"
+
+  # # Provisioning scripts
+    fdc.vm.provision "shell", path: "scripts/ps/provision-all.ps1", privileged: true
+    fdc.vm.provision "shell", inline: "netsh int ip set address 'Ethernet 2' address=192.168.56.12 mask=255.255.255.0 gateway=192.168.56.1"
+    fdc.vm.provision "shell", path: "scripts/ps/create-ad-foreign.ps1", privileged: true, args: "-ip 192.168.56.12 -domain foreign.ad -netbios FOREIGN", reboot: true
+    fdc.vm.provision "shell", path: "scripts/ps/create-adgroups-foreign.ps1", privileged: true
+    fdc.vm.provision "shell", path: "scripts/ps/create-ad-users-foreign.ps1", privileged: true
+    fdc.vm.provision "shell", path: "scripts/ps/install-adcs-foreign.ps1", privileged: true, reboot: true
+    fdc.vm.provision "shell", path: "scripts/ps/adcs-cert-templates-fn.ps1", privileged: true 
+    fdc.vm.provision "shell", path: "scripts/ps/create-acl-foreign.ps1", privileged: true
+    fdc.vm.provision "shell", path: "scripts/ps/provision-fn-dc.ps1", privileged: true
+    fdc.vm.provision "shell", path: "scripts/ps/create-trust.ps1", privileged: true
+  
+    # VBoxMange Customization
+    fdc.vm.provider "virtualbox" do |v, override|
+      v.gui = false
+      #v.linked_clone = true
+      v.name = "FN-DC"
+	    v.memory = 2048
+      v.cpus = 2
+      v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+    end
+end 
+
+ ## FOREIGN SERVER 01
+	######################################
+	config.vm.synced_folder '.', '/vagrant', disabled: true
+	  config.vm.define "FN-SRV" do |fsrv|
+    fsrv.vm.box = $windows_2022
+    fsrv.vm.box_check_update = false
+    fsrv.vm.hostname = "FN-SRV"
+    # Use the plaintext WinRM transport and force it to use basic authentication.
+    # NB this is needed because the default negotiate transport stops working after the domain controller is installed.
+    # see https://groups.google.com/forum/#!topic/vagrant-up/sZantuCM0q4
+    fsrv.winrm.transport = :plaintext
+    fsrv.winrm.basic_auth_only = true
+    fsrv.vm.communicator = "winrm"
+    fsrv.winrm.timeout =   3000
+    fsrv.winrm.retry_limit = 30
+    fsrv.winrm.retry_delay = 10
+    fsrv.vm.boot_timeout = 3000
+    fsrv.vm.graceful_halt_timeout = 600
+    fsrv.vm.network "private_network", ip: "192.168.56.23"
+
+  # Upload files
+    fsrv.vm.provision "file", source: "./files/hosts-win", destination: "C:/Windows/System32/Drivers/etc/hosts"
+
+  # # Provisioning scripts
+    fsrv.vm.provision "shell", path: "scripts/ps/provision-all.ps1", privileged: true
+    fsrv.vm.provision "shell", inline: "netsh int ip set address 'Ethernet 2' address=192.168.56.23 mask=255.255.255.0 gateway=192.168.56.1"
+    fsrv.vm.provision "shell", path: "scripts/ps/install-iis.ps1", privileged: true
+    fsrv.vm.provision "shell", path: "scripts/ps/join-ad-foreign.ps1", privileged: true, reboot: true
+    fsrv.vm.provision "shell", path: "scripts/ps/provision-fn-srv.ps1", privileged: true
+  
+    # VBoxMange Customization
+    fsrv.vm.provider "virtualbox" do |v, override|
+      v.gui = false
+      #v.linked_clone = true
+      v.name = "FN-SRV"
+	    v.memory = 2048
+      v.cpus = 2
+      v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+    end
+end 
+
+  ## Kali
+  ######################################################
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+  config.vm.define "KALI" do |kali|
+    kali.vm.box = $kali_linux
+    kali.vm.hostname = "Kali"
+    kali.ssh.insert_key = false
+    kali.ssh.username = "vagrant"
+    kali.ssh.password = "vagrant"
+	  kali.vm.network "private_network", ip: "192.168.56.200"
+    
+    kali.vm.provider "virtualbox" do |v, override|
+      v.name = "KALI"
+      v.memory = 8192
+	    v.cpus = 2
+      v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
+      v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+    end
+  end
+end
