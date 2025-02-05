@@ -2,21 +2,18 @@
 
 apt update -y
 DEBIAN_FRONTEND=noninteractive apt upgrade -y
-DEBIAN_FRONTEND=noninteractive apt install docker.io mitm6 netexec python3-pip pipx gowitness cargo rdate kali-root-login gcc clang libclang-dev libgssapi-krb5-2 libkrb5-dev libsasl2-modules-gssapi-mit musl-tools gcc-mingw-w64-x86-64 krb5-user -y -y
-# DEBIAN_FRONTEND=noninteractive sudo apt install mitm6 crackmapexec bloodhound.py pipx docker-compose kali-root-login --yes --force-yes
-# apt install mitm6 crackmapexec bloodhound.py pipx docker-compose kali-root-login -y
+DEBIAN_FRONTEND=noninteractive apt install nbtscan net-tools wireshark gowitness impacket-scripts hashcat proxychains4 sprayhound freerdp2-x11 powershell-lts docker.io mitm6 netexec python3-pip pipx gowitness cargo rdate kali-root-login gcc clang libclang-dev libgssapi-krb5-2 libkrb5-dev libsasl2-modules-gssapi-mit musl-tools gcc-mingw-w64-x86-64 krb5-user python3-certipy coercer -y
+apt update -y
+DEBIAN_FRONTEND=noninteractive apt upgrade -y
 
-Impacket:
+# Impacket:
 cd ~
-# pip3 uninstall impacket -y -q #Uninstall the old version to avoid conflicts
 cd /opt/
 git clone https://github.com/fortra/impacket.git
-# cd impacket
-# python3 -m pipx install .
 
 # Docker-compose
 cd ~
-curl -SL https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+curl -SL https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
 # Responder:
@@ -26,15 +23,8 @@ git clone https://github.com/lgandx/Responder.git
 
 # PetitPotam
 cd ~
-cd /opt
-git clone https://github.com/topotam/PetitPotam.git
-
-# kerbrute:
-cd ~
-pip3 install kerbrute
 cd /opt/
-wget https://github.com/ropnop/kerbrute/releases/download/v1.0.3/kerbrute_linux_amd64
-chmod +x kerbrute_linux_amd64
+git clone https://github.com/topotam/PetitPotam.git
 
 # BloodHound
 cd ~
@@ -50,50 +40,19 @@ wget https://raw.githubusercontent.com/SpecterOps/bloodhound/main/examples/docke
 
 # OneRuleToRuleThemAll Rule
 cd ~
-cd /opt
+cd /opt/
 wget https://raw.githubusercontent.com/NotSoSecure/password_cracking_rules/master/OneRuleToRuleThemAll.rule
 
 # Default service accounts
 cd ~
-cd /opt
+cd /opt/
 wget https://raw.githubusercontent.com/q0phi80/CybersecurityTools/master/service-accts.txt
 
-# Unzip Rockyou
-cd ~
-gunzip -d /usr/share/wordlists/rockyou.txt.gz
-
-# # smbclient-ng:
-cd ~
-python3 -m pip install smbclientng
-
-# Certipy
+# Download Rockyou
 cd ~
 cd /opt/
-git clone https://github.com/ly4k/Certipy.git
-cd Certipy
-python3 setup.py install
-
-# # DonPAPI
-cd ~
-pipx install donpapi
-
-# # Coercer
-# cd ~
-# python3 -m pip install coercer
-
-# AD-Miner:
-# cd ~
-# pipx install 'git+https://github.com/Mazars-Tech/AD_Miner.git'
-
-# Rusthound
-# Need to first manually install cargo
-# Step 1 install rustup: curl https://sh.rustup.rs -sSf | sh
-# Step 2 source it: . "$HOME/.cargo/env"
-cd ~
-cd /opt/
-git clone https://github.com/OPENCYBER-FR/RustHound
-cd RustHound
-make install
+wget https://github.com/praetorian-inc/Hob0Rules/raw/refs/heads/master/wordlists/rockyou.txt.gz
+gunzip -d rockyou.txt.gz
 
 # GhostPack
 cd ~
@@ -107,33 +66,24 @@ git clone https://github.com/ShutdownRepo/targetedKerberoast.git
 
 #noPac
 cd ~
-cd /opt
+cd /opt/
 git clone https://github.com/Ridter/noPac.git
 
 #PowerSharpPack
 cd ~
-cd /opt
+cd /opt/
 git clone https://github.com/S3cur3Th1sSh1t/PowerSharpPack.git
 
-# LDEEP
-cd ~
-python -m pip install git+https://github.com/franc-pentest/ldeep
-
 # dacledit
+cd ~
+cd /opt/
 git clone https://github.com/ThePorgs/impacket.git
 cd impacket 
 python3 setup.py install
-pipx ensurepath
 
-# Set Global path
-# pipx ensurepath
+# pipx installs
+cd ~
+pipx install kerbrute bloodhound-ce ldeep smbclientng donpapi
 
 # Disable the Network Time Protocol from auto-updating
 timedatectl set-ntp off
-
-# Make the resolv.conf file immmutable
-chattr +i /etc/resolv.conf
-
-# Create a password for the Kali root account so that we can log in with the root account
-echo root:Fluffy123! | sudo chpasswd
-
