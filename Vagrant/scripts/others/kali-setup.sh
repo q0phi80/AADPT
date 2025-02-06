@@ -59,6 +59,11 @@ cd ~
 cd /opt/
 git clone https://github.com/r3motecontrol/Ghostpack-CompiledBinaries.git
 
+#krbrelayx
+cd ~
+cd /opt/
+git clone https://github.com/dirkjanm/krbrelayx.git
+
 #targetedKerberoast
 cd ~
 cd /opt/
