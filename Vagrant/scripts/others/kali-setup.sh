@@ -2,7 +2,7 @@
 
 apt update -y
 DEBIAN_FRONTEND=noninteractive apt upgrade -y
-DEBIAN_FRONTEND=noninteractive apt install nbtscan net-tools wireshark gowitness impacket-scripts hashcat proxychains4 sprayhound freerdp2-x11 powershell-lts docker.io mitm6 samba-common-bin netexec python3-pip pipx gowitness cargo rdate kali-root-login gcc clang libclang-dev libgssapi-krb5-2 libkrb5-dev libsasl2-modules-gssapi-mit musl-tools gcc-mingw-w64-x86-64 krb5-user python3-certipy coercer dirb -y
+DEBIAN_FRONTEND=noninteractive apt install nbtscan net-tools wireshark gowitness impacket-scripts hashcat proxychains4 sprayhound freerdp2-x11 powershell-lts docker.io mitm6 samba-common-bin netexec python3-pip pipx gowitness cargo rdate kali-root-login gcc clang libclang-dev libgssapi-krb5-2 libkrb5-dev libsasl2-modules-gssapi-mit musl-tools gcc-mingw-w64-x86-64 krb5-user coercer dirb -y
 apt update -y
 DEBIAN_FRONTEND=noninteractive apt upgrade -y
 
@@ -88,7 +88,7 @@ python3 setup.py install
 
 # pipx installs
 cd ~
-pipx install kerbrute bloodhound-ce ldeep smbclientng donpapi
+pipx install kerbrute bloodhound-ce ldeep smbclientng donpapi certipy-ad
 
 # Disable the Network Time Protocol from auto-updating
 timedatectl set-ntp off
